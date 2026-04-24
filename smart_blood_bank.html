@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BloodNet — Tamil Nadu Smart Blood Network</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #c8102e;
+  --red-dark: #8b0000;
+  --red-glow: rgba(200,16,46,0.25);
+  --bg: #0a0a0a;
+  --bg2: #111;
+  --bg3: #1a1a1a;
+  --border: rgba(255,255,255,0.07);
+  --text: #f0ece8;
+  --muted: #888;
+  --accent: #ff3355;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── NOISE TEXTURE OVERLAY ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ─── NAVBAR ─── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-pulse {
+  width: 32px; height: 32px;
+  background: var(--red);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.logo-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--red);
+  animation: sonar 2s ease-out infinite;
+}
+
+@keyframes sonar {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.logo-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--text);
+}
+
+.logo-text span { color: var(--red); }
+
+nav ul {
+  display: flex;
+  list-style: none;
+  gap: 4px;
+}
+
+nav ul li a {
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: all 0.2s;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  display: block;
+}
+
+nav ul li a:hover, nav ul li a.active {
+  color: var(--text);
+  background: var(--bg3);
+}
+
+nav ul li a.active {
+  color: var(--red);
+}
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.hamburger span {
+  width: 22px; height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+/* ─── MOBILE NAV ─── */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  top: 64px; left: 0; right: 0;
+  background: rgba(10,10,10,0.98);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 999;
+  flex-direction: column;
+  padding: 12px;
+  gap: 4px;
+}
+
+.mobile-menu.open { display: flex; }
+
+.mobile-menu a {
+  text-decoration: none;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobile-menu a:hover { background: var(--bg3); color: var(--text); }
+
+/* ─── HERO ─── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding-top: 64px;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(200,16,46,0.12) 0%, transparent 70%);
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+}
+
+.hero-content {
+  text-align: center;
+  z-index: 1;
+  padding: 2rem;
+  max-width: 760px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(200,16,46,0.12);
+  border: 1px solid rgba(200,16,46,0.3);
+  border-radius: 100px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 1px;
+  color: var(--red);
+  margin-bottom: 28px;
+  animation: fadeUp 0.6s ease both;
+}
+
+.pulse-dot {
+  width: 6px; height: 6px;
+  background: var(--red);
+  border-radius: 50%;
+  animation: blink 1.2s ease infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.hero h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(64px, 10vw, 120px);
+  line-height: 0.95;
+  letter-spacing: 2px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--red);
+  display: block;
+}
+
+.hero p {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 520px;
+  margin: 0 auto 36px;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+
+.btn-primary {
+  background: var(--red);
+  color: white;
+  border: none;
+  padding: 13px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--red-glow); }
+.btn-primary:hover::before { opacity: 1; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 13px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-ghost:hover { border-color: rgba(255,255,255,0.2); background: var(--bg3); }
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  margin-top: 60px;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+
+.hero-stat {
+  text-align: center;
+}
+
+.hero-stat .num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  color: var(--red);
+  line-height: 1;
+}
+
+.hero-stat .label {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── MAIN CONTENT ─── */
+.app-container {
+  display: none;
+  min-height: calc(100vh - 64px);
+  padding-top: 64px;
+}
+
+.app-container.visible { display: block; }
+
+.page-header {
+  padding: 48px 2rem 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.page-header h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.page-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.page-content {
+  padding: 32px 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ─── SECTIONS ─── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ─── ABOUT ─── */
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.about-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  transition: border-color 0.2s;
+}
+
+.about-card:hover { border-color: rgba(200,16,46,0.3); }
+
+.about-card .icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.about-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.about-card p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.about-banner {
+  margin-top: 24px;
+  background: linear-gradient(135deg, rgba(200,16,46,0.12), rgba(200,16,46,0.04));
+  border: 1px solid rgba(200,16,46,0.2);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.about-banner .big-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 72px;
+  color: var(--red);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.about-banner p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ─── DONOR GRID ─── */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.input-field {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-field:focus { border-color: rgba(200,16,46,0.5); }
+
+.input-field option { background: var(--bg2); }
+
+.donor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.donor-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  transition: all 0.2s;
+  animation: fadeUp 0.4s ease both;
+}
+
+.donor-card:hover {
+  border-color: rgba(200,16,46,0.25);
+  transform: translateY(-2px);
+}
+
+.donor-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.donor-avatar {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.blood-badge {
+  background: rgba(200,16,46,0.15);
+  color: var(--red);
+  border: 1px solid rgba(200,16,46,0.25);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+}
+
+.donor-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.donor-meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.donor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-green { background: var(--success); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.dot-red { background: var(--accent); }
+
+/* ─── REGISTER ─── */
+.register-form {
+  max-width: 500px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full { grid-column: 1 / -1; }
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.msg-box {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 12px;
+  display: none;
+}
+
+.msg-box.success {
+  display: block;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.3);
+  color: var(--success);
+}
+
+.msg-box.error {
+  display: block;
+  background: rgba(200,16,46,0.1);
+  border: 1px solid rgba(200,16,46,0.3);
+  color: var(--accent);
+}
+
+/* ─── REQUEST ─── */
+.request-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.request-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.request-panel h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.status-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-empty {
+  text-align: center;
+  color: var(--muted);
+}
+
+.status-empty .big-icon { font-size: 48px; margin-bottom: 12px; }
+.status-empty p { font-size: 13px; }
+
+/* ─── DONOR CALLING ─── */
+.calling-card {
+  width: 100%;
+  text-align: center;
+}
+
+.caller-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--bg3);
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  position: relative;
+}
+
+.caller-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--red);
+  animation: sonar 1.5s ease-out infinite;
+}
+
+.calling-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.calling-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.call-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.response-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-accept {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-accept:hover { opacity: 0.85; transform: translateY(-1px); }
+
+.btn-decline {
+  background: var(--bg3);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-decline:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+
+/* ─── APPROVED DONOR ─── */
+.approved-card {
+  width: 100%;
+}
+
+.approved-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.approved-icon {
+  width: 48px; height: 48px;
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.approved-title { font-size: 18px; font-weight: 600; }
+.approved-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.eta-display {
+  background: rgba(200,16,46,0.1);
+  border: 1px solid rgba(200,16,46,0.2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.eta-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 52px;
+  color: var(--red);
+  line-height: 1;
+}
+
+.eta-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+#map {
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* ─── RESPONSE SHEET ─── */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead tr {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg2); }
+
+tbody td {
+  padding: 12px 16px;
+  color: var(--text);
+}
+
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.chip-green { background: rgba(34,197,94,0.12); color: var(--success); }
+.chip-red { background: rgba(200,16,46,0.12); color: var(--accent); }
+.chip-blue { background: rgba(59,130,246,0.12); color: #60a5fa; }
+
+.empty-table {
+  text-align: center;
+  padding: 48px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ─── MODAL / OVERLAY ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 420px;
+  animation: fadeUp 0.3s ease;
+}
+
+.modal h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.modal p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.modal-question {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.modal-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-btns button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  border: none;
+  transition: all 0.2s;
+}
+
+.modal-btns .yes { background: var(--red); color: white; }
+.modal-btns .yes:hover { opacity: 0.85; }
+.modal-btns .no { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.modal-btns .no:hover { border-color: rgba(255,255,255,0.2); }
+
+.modal-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.modal-progress span {
+  height: 3px;
+  flex: 1;
+  border-radius: 10px;
+  background: var(--border);
+}
+
+.modal-progress span.done { background: var(--red); }
+.modal-progress span.current { background: rgba(200,16,46,0.4); }
+
+/* ─── FOOTER ─── */
+footer {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 32px 2rem;
+  margin-top: 60px;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-copy {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.footer-right {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+  nav ul { display: none; }
+  .hamburger { display: flex; }
+
+  .request-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .hero-stats { gap: 24px; }
+
+  .page-header { padding: 32px 1rem 20px; }
+  .page-content { padding: 24px 1rem; }
+}
+
+@media (max-width: 480px) {
+  .donor-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ─── LOADING STATE ─── */
+.loader {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+
+/* Tooltip */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1e1e;
+  color: var(--text);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.tooltip:hover::after { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ─── NAVIGATION ─── -->
+<nav>
+  <a class="nav-logo" onclick="showPage('home')" style="cursor:pointer;">
+    <div class="logo-pulse">🩸</div>
+    <span class="logo-text">Blood<span>Net</span></span>
+  </a>
+  <ul id="navLinks">
+    <li><a id="nav-home" class="active" onclick="showPage('home')">Home</a></li>
+    <li><a id="nav-about" onclick="showPage('about')">About</a></li>
+    <li><a id="nav-donors" onclick="showPage('donors')">Donors</a></li>
+    <li><a id="nav-register" onclick="showPage('register')">Register</a></li>
+    <li><a id="nav-request" onclick="showPage('request')">Request</a></li>
+    <li><a id="nav-responseSheet" onclick="showPage('responseSheet')">Response Log</a></li>
+  </ul>
+  <div class="hamburger" onclick="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobileMenu">
+  <a onclick="showPage('home');toggleMobileMenu()">Home</a>
+  <a onclick="showPage('about');toggleMobileMenu()">About</a>
+  <a onclick="showPage('donors');toggleMobileMenu()">Donors</a>
+  <a onclick="showPage('register');toggleMobileMenu()">Register</a>
+  <a onclick="showPage('request');toggleMobileMenu()">Emergency Request</a>
+  <a onclick="showPage('responseSheet');toggleMobileMenu()">Response Log</a>
+</div>
+
+<!-- ─── HERO ─── -->
+<section id="heroSection">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge"><span class="pulse-dot"></span> LIVE SYSTEM · TAMIL NADU</div>
+      <h1>Donate Blood<em>Save Lives</em></h1>
+      <p>A smart, real-time blood management platform connecting donors and patients across Tamil Nadu. Emergency requests handled in minutes.</p>
+      <div class="hero-ctas">
+        <button class="btn-primary" onclick="showPage('request')">🚨 Emergency Request</button>
+        <button class="btn-ghost" onclick="showPage('register')">Become a Donor →</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num" id="statDonors">30</div><div class="label">Donors</div></div>
+        <div class="hero-stat"><div class="num">10</div><div class="label">Cities</div></div>
+        <div class="hero-stat"><div class="num">8</div><div class="label">Blood Types</div></div>
+        <div class="hero-stat"><div class="num">24/7</div><div class="label">Available</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── APP CONTAINER ─── -->
+<div class="app-container" id="appContainer">
+
+  <!-- Page Header -->
+  <div class="page-header" id="pageHeader">
+    <h2 id="pageTitle">Page</h2>
+    <p id="pageSubtitle"></p>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ─── ABOUT ─── -->
+    <section id="about" class="section">
+      <div class="about-grid">
+        <div class="about-card">
+          <div class="icon">💉</div>
+          <h3>Why Donate?</h3>
+          <p>Every donation can save up to 3 lives. Blood cannot be manufactured — it can only come from generous donors like you.</p>
+        </div>
+        <div class="about-card">
+          <div class="icon">⚡</div>
+          <h3>Emergency Ready</h3>
+          <p>Accidents, surgeries, and emergencies require blood immediately. Our network ensures donors are always just minutes away.</p>
+        </div>
+        <div class="about-card">
+          <div class="icon">🔒</div>
+          <h3>Health Screened</h3>
+          <p>Every donor is screened for health conditions before being connected to a patient, ensuring safe and reliable transfusions.</p>
+        </div>
+        <div class="about-card">
+          <div class="icon">📡</div>
+          <h3>Live Tracking</h3>
+          <p>Real-time GPS tracking of donor movement from pickup to hospital delivery, giving patients peace of mind.</p>
+        </div>
+        <div class="about-card">
+          <div class="icon">🏥</div>
+          <h3>Hospital Network</h3>
+          <p>Connected to all major hospitals across 10 cities in Tamil Nadu with dedicated coordinators on call.</p>
+        </div>
+        <div class="about-card">
+          <div class="icon">📊</div>
+          <h3>Smart Matching</h3>
+          <p>AI-powered matching ensures the closest, healthiest, and most compatible donor is found in seconds.</p>
+        </div>
+      </div>
+      <div class="about-banner">
+        <div class="big-num">3×</div>
+        <p>A single blood donation can be separated into red cells, plasma, and platelets — saving up to <strong>3 different patients</strong>. Donating once every 3 months is safe for most healthy adults and has no long-term health impact.</p>
+      </div>
+    </section>
+
+    <!-- ─── DONORS ─── -->
+    <section id="donors" class="section">
+      <div class="search-bar">
+        <input class="input-field" id="searchName" placeholder="🔍  Search by name..." oninput="renderDonors()">
+        <select class="input-field" id="filterBlood" onchange="renderDonors()" style="flex:0;min-width:130px;">
+          <option value="">All Blood Types</option>
+          <option>A+</option><option>A-</option>
+          <option>B+</option><option>B-</option>
+          <option>O+</option><option>O-</option>
+          <option>AB+</option><option>AB-</option>
+        </select>
+        <select class="input-field" id="filterCity" onchange="renderDonors()" style="flex:0;min-width:140px;">
+          <option value="">All Cities</option>
+          <option>Chennai</option><option>Madurai</option><option>Coimbatore</option>
+          <option>Salem</option><option>Tirunelveli</option><option>Thoothukudi</option>
+          <option>Erode</option><option>Trichy</option><option>Vellore</option><option>Thanjavur</option>
+        </select>
+      </div>
+      <div class="donor-grid" id="donorGrid"></div>
+    </section>
+
+    <!-- ─── REGISTER ─── -->
+    <section id="register" class="section">
+      <div class="register-form">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Full Name</label>
+            <input class="input-field" type="text" id="rname" placeholder="e.g. Ramesh Kumar">
+          </div>
+          <div class="form-group">
+            <label>Blood Group</label>
+            <select class="input-field" id="rbgroup">
+              <option value="">Select</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>O+</option><option>O-</option>
+              <option>AB+</option><option>AB-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <select class="input-field" id="rlocation">
+              <option>Chennai</option><option>Madurai</option><option>Coimbatore</option>
+              <option>Salem</option><option>Tirunelveli</option><option>Thoothukudi</option>
+              <option>Erode</option><option>Trichy</option><option>Vellore</option><option>Thanjavur</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Phone Number</label>
+            <input class="input-field" type="tel" id="rphone" placeholder="e.g. 9876543210">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="registerDonor()" style="width:auto;padding:13px 32px;">
+          Register as Donor →
+        </button>
+        <div id="registerMsg" class="msg-box"></div>
+      </div>
+    </section>
+
+    <!-- ─── REQUEST ─── -->
+    <section id="request" class="section">
+      <div class="request-layout">
+        <div class="request-panel">
+          <h3>Emergency Details</h3>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Blood Group Required</label>
+            <select class="input-field" id="rblood">
+              <option value="">Select Blood Group</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>O+</option><option>O-</option>
+              <option>AB+</option><option>AB-</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:20px;">
+            <label>Hospital City</label>
+            <select class="input-field" id="hospitalLoc">
+              <option>Chennai</option><option>Madurai</option><option>Coimbatore</option>
+              <option>Salem</option><option>Tirunelveli</option><option>Thoothukudi</option>
+              <option>Erode</option><option>Trichy</option><option>Vellore</option><option>Thanjavur</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="processRequest()" id="findBtn">
+            🔍 Find Donor Now
+          </button>
+        </div>
+        <div class="status-panel" id="statusBox">
+          <div class="status-empty">
+            <div class="big-icon">🩸</div>
+            <p>Fill in the details and click<br><strong>"Find Donor Now"</strong> to begin</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── RESPONSE SHEET ─── -->
+    <section id="responseSheet" class="section">
+      <div class="table-wrap">
+        <table id="responseTable">
+          <thead>
+            <tr>
+              <th>Donor</th>
+              <th>Blood</th>
+              <th>City</th>
+              <th>Fever/Cold</th>
+              <th>HIV</th>
+              <th>Medication</th>
+              <th>Recent Donation</th>
+              <th>Total Donations</th>
+              <th>Status</th>
+              <th>ETA</th>
+            </tr>
+          </thead>
+          <tbody id="responseBody">
+            <tr>
+              <td colspan="10" class="empty-table">No response records yet. Process an emergency request to see results here.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div><!-- /page-content -->
+</div><!-- /app-container -->
+
+<!-- ─── MODAL ─── -->
+<div class="modal-overlay" id="healthModal">
+  <div class="modal">
+    <h3>Health Screening</h3>
+    <p id="modalDonorInfo">Screening donor before approval</p>
+    <div class="modal-progress" id="modalProgress"></div>
+    <div class="modal-question" id="modalQuestion"></div>
+    <div class="modal-btns">
+      <button class="yes" onclick="healthAnswer('yes')">Yes</button>
+      <button class="no" onclick="healthAnswer('no')">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div class="logo-pulse" style="width:24px;height:24px;font-size:11px;">🩸</div>
+        <span style="font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;">Blood<span style="color:var(--red);">Net</span></span>
+      </div>
+      <div class="footer-copy">© 2026 Tamil Nadu Smart Blood Donation System. All rights reserved.</div>
+    </div>
+    <div class="footer-right">TN · 10 CITIES · 24/7 LIVE</div>
+  </div>
+</footer>
+
+<script>
+// ─── DATA ───
+const EMOJIS = ['👨','👩','🧑','👦','👧','🧔','👴','👵'];
+
+let donors = [
+  {name:"Arun",blood:"A+",loc:"Chennai",phone:"900000001",healthy:true},
+  {name:"Bala",blood:"B+",loc:"Madurai",phone:"900000002",healthy:true},
+  {name:"Charan",blood:"O+",loc:"Coimbatore",phone:"900000003",healthy:true},
+  {name:"Divya",blood:"AB+",loc:"Salem",phone:"900000004",healthy:true},
+  {name:"Elango",blood:"A-",loc:"Tirunelveli",phone:"900000005",healthy:true},
+  {name:"Farhan",blood:"B-",loc:"Thoothukudi",phone:"900000006",healthy:true},
+  {name:"Gokul",blood:"O-",loc:"Erode",phone:"900000007",healthy:true},
+  {name:"Hari",blood:"AB-",loc:"Trichy",phone:"900000008",healthy:true},
+  {name:"Ishwarya",blood:"A+",loc:"Vellore",phone:"900000009",healthy:true},
+  {name:"Jagan",blood:"B+",loc:"Thanjavur",phone:"900000010",healthy:true},
+  {name:"Karthik",blood:"O+",loc:"Chennai",phone:"900000011",healthy:true},
+  {name:"Lavanya",blood:"AB+",loc:"Madurai",phone:"900000012",healthy:true},
+  {name:"Manoj",blood:"A-",loc:"Coimbatore",phone:"900000013",healthy:true},
+  {name:"Nivetha",blood:"B-",loc:"Salem",phone:"900000014",healthy:true},
+  {name:"Prakash",blood:"O-",loc:"Tirunelveli",phone:"900000015",healthy:true},
+  {name:"Raja",blood:"AB-",loc:"Thoothukudi",phone:"900000016",healthy:true},
+  {name:"Sangeetha",blood:"A+",loc:"Erode",phone:"900000017",healthy:true},
+  {name:"Tharun",blood:"B+",loc:"Trichy",phone:"900000018",healthy:true},
+  {name:"Usha",blood:"O+",loc:"Vellore",phone:"900000019",healthy:true},
+  {name:"Vikram",blood:"AB+",loc:"Thanjavur",phone:"900000020",healthy:true},
+  {name:"Waseem",blood:"A-",loc:"Chennai",phone:"900000021",healthy:true},
+  {name:"Xavier",blood:"B-",loc:"Madurai",phone:"900000022",healthy:true},
+  {name:"Yamini",blood:"O-",loc:"Coimbatore",phone:"900000023",healthy:true},
+  {name:"Zakir",blood:"AB-",loc:"Salem",phone:"900000024",healthy:true},
+  {name:"Aditya",blood:"A+",loc:"Tirunelveli",phone:"900000025",healthy:true},
+  {name:"Bhavana",blood:"B+",loc:"Thoothukudi",phone:"900000026",healthy:true},
+  {name:"Chetan",blood:"O+",loc:"Erode",phone:"900000027",healthy:true},
+  {name:"Deepa",blood:"AB+",loc:"Trichy",phone:"900000028",healthy:true},
+  {name:"Eshan",blood:"A-",loc:"Vellore",phone:"900000029",healthy:true},
+  {name:"Fathima",blood:"B-",loc:"Thanjavur",phone:"900000030",healthy:true}
+];
+
+// ─── PAGE METADATA ───
+const pages = {
+  about: { title: 'About BloodNet', sub: 'Why blood donation matters and how our system works' },
+  donors: { title: 'Registered Donors', sub: 'Browse and filter our active donor network' },
+  register: { title: 'Become a Donor', sub: 'Join our network and help save lives across Tamil Nadu' },
+  request: { title: 'Emergency Request', sub: 'Find a compatible blood donor in your area immediately' },
+  responseSheet: { title: 'Response Log', sub: 'History of all donor screening and response records' },
+};
+
+let currentPage = 'home';
+
+function showPage(id) {
+  currentPage = id;
+  // Update nav
+  document.querySelectorAll('nav ul li a').forEach(a => a.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + id);
+  if (navEl) navEl.classList.add('active');
+
+  if (id === 'home') {
+    document.getElementById('heroSection').style.display = '';
+    document.getElementById('appContainer').classList.remove('visible');
+    return;
+  }
+
+  document.getElementById('heroSection').style.display = 'none';
+  document.getElementById('appContainer').classList.add('visible');
+
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const sec = document.getElementById(id);
+  if (sec) sec.classList.add('active');
+
+  if (pages[id]) {
+    document.getElementById('pageTitle').textContent = pages[id].title;
+    document.getElementById('pageSubtitle').textContent = pages[id].sub;
+  }
+
+  if (id === 'donors') renderDonors();
+  window.scrollTo(0, 0);
+}
+
+// ─── MOBILE MENU ───
+function toggleMobileMenu() {
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+
+// ─── RENDER DONORS ───
+function renderDonors() {
+  const nameFilter = document.getElementById('searchName')?.value.toLowerCase() || '';
+  const bloodFilter = document.getElementById('filterBlood')?.value || '';
+  const cityFilter = document.getElementById('filterCity')?.value || '';
+
+  const filtered = donors.filter(d => {
+    return (!nameFilter || d.name.toLowerCase().includes(nameFilter))
+      && (!bloodFilter || d.blood === bloodFilter)
+      && (!cityFilter || d.loc === cityFilter);
+  });
+
+  const grid = document.getElementById('donorGrid');
+  if (!filtered.length) {
+    grid.innerHTML = '<p style="color:var(--muted);font-size:14px;padding:20px 0;">No donors match your filters.</p>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map((d, i) => `
+    <div class="donor-card" style="animation-delay:${i * 30}ms">
+      <div class="donor-card-top">
+        <div class="donor-avatar">${EMOJIS[i % EMOJIS.length]}</div>
+        <div class="blood-badge">${d.blood}</div>
+      </div>
+      <div class="donor-name">${d.name}</div>
+      <div class="donor-meta">
+        <span>📍 ${d.loc}</span>
+        <span>📞 ${d.phone}</span>
+      </div>
+      <div class="donor-status">
+        <span class="dot ${d.healthy ? 'dot-green' : 'dot-red'}"></span>
+        ${d.healthy ? 'Eligible' : 'Unavailable'}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('statDonors').textContent = donors.length;
+}
+
+// ─── REGISTER DONOR ───
+function registerDonor() {
+  const name = document.getElementById('rname').value.trim();
+  const blood = document.getElementById('rbgroup').value;
+  const loc = document.getElementById('rlocation').value;
+  const phone = document.getElementById('rphone').value.trim();
+  const msgEl = document.getElementById('registerMsg');
+
+  if (!name || !blood || !loc || !phone) {
+    msgEl.className = 'msg-box error';
+    msgEl.textContent = '⚠️ Please fill in all fields before registering.';
+    return;
+  }
+
+  if (!/^\d{10}$/.test(phone)) {
+    msgEl.className = 'msg-box error';
+    msgEl.textContent = '⚠️ Please enter a valid 10-digit phone number.';
+    return;
+  }
+
+  donors.push({ name, blood, loc, phone, healthy: true });
+  msgEl.className = 'msg-box success';
+  msgEl.textContent = `✅ ${name} registered successfully as a ${blood} donor in ${loc}!`;
+  document.getElementById('rname').value = '';
+  document.getElementById('rphone').value = '';
+  document.getElementById('rbgroup').value = '';
+  document.getElementById('statDonors').textContent = donors.length;
+}
+
+// ─── EMERGENCY REQUEST ───
+let matchedDonors = [], currentIndex = 0;
+let healthAnswers = {};
+let currentQuestionIndex = 0;
+let mapInstance = null, mapMarker = null;
+
+const healthQuestions = [
+  { key: 'fever', q: 'Does the donor have Fever or Cold right now?', disqualify: 'yes' },
+  { key: 'hiv', q: 'Has the donor ever been diagnosed with HIV?', disqualify: 'yes' },
+  { key: 'medication', q: 'Is the donor currently taking any medication?', disqualify: 'yes' },
+  { key: 'recentDonation', q: 'Did the donor donate blood in the last 3 months?', disqualify: 'yes' },
+];
+
+let totalDonationsInput = 1;
+
+function processRequest() {
+  const blood = document.getElementById('rblood').value;
+  const city = document.getElementById('hospitalLoc').value;
+
+  if (!blood) {
+    showStatus(`<div class="status-empty"><div class="big-icon">⚠️</div><p>Please select a <strong>Blood Group</strong> first.</p></div>`);
+    return;
+  }
+
+  matchedDonors = donors.filter(d => d.blood === blood && d.healthy);
+  if (!matchedDonors.length) {
+    showStatus(`<div class="status-empty"><div class="big-icon">😔</div><p>No eligible <strong>${blood}</strong> donors found.<br>Try a different blood group.</p></div>`);
+    return;
+  }
+
+  matchedDonors.sort((a, b) => (a.loc === city ? -1 : 1));
+  currentIndex = 0;
+  callNextDonor();
+}
+
+function callNextDonor() {
+  if (currentIndex >= matchedDonors.length) {
+    showStatus(`<div class="status-empty"><div class="big-icon">❌</div><p>No donors accepted this request.<br>Please try again later.</p></div>`);
+    return;
+  }
+  const d = matchedDonors[currentIndex];
+  showStatus(`
+    <div class="calling-card">
+      <div class="caller-avatar">${EMOJIS[currentIndex % EMOJIS.length]}</div>
+      <div class="calling-name">${d.name}</div>
+      <div class="calling-sub">${d.blood} · ${d.loc}</div>
+      <div class="call-actions">
+        <a href="tel:${d.phone}"><button class="btn-ghost" style="padding:8px 18px;font-size:13px;">📞 Call</button></a>
+        <a href="sms:${d.phone}"><button class="btn-ghost" style="padding:8px 18px;font-size:13px;">💬 SMS</button></a>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Has this donor agreed to donate?</p>
+      <div class="response-btns">
+        <button class="btn-accept" onclick="donorAccepted()">✓ Yes, Accepted</button>
+        <button class="btn-decline" onclick="donorDeclined()">✕ Declined</button>
+      </div>
+    </div>
+  `);
+}
+
+function donorAccepted() {
+  healthAnswers = {};
+  currentQuestionIndex = 0;
+  totalDonationsInput = 1;
+  openHealthModal();
+}
+
+function donorDeclined() {
+  currentIndex++;
+  callNextDonor();
+}
+
+function openHealthModal() {
+  renderModalQuestion();
+  document.getElementById('healthModal').classList.add('open');
+}
+
+function renderModalQuestion() {
+  const d = matchedDonors[currentIndex];
+  const q = healthQuestions[currentQuestionIndex];
+  const modal = document.getElementById('healthModal');
+
+  document.getElementById('modalDonorInfo').textContent = `Screening ${d.name} (${d.blood} · ${d.loc})`;
+
+  // Progress bar
+  const prog = document.getElementById('modalProgress');
+  prog.innerHTML = healthQuestions.map((_, i) => {
+    if (i < currentQuestionIndex) return '<span class="done"></span>';
+    if (i === currentQuestionIndex) return '<span class="current"></span>';
+    return '<span></span>';
+  }).join('');
+
+  document.getElementById('modalQuestion').textContent = q.q;
+}
+
+function healthAnswer(ans) {
+  const q = healthQuestions[currentQuestionIndex];
+  healthAnswers[q.key] = ans;
+
+  if (ans === q.disqualify) {
+    // Disqualified
+    document.getElementById('healthModal').classList.remove('open');
+    const d = matchedDonors[currentIndex];
+    d.healthy = false;
+
+    addToResponseLog(d, '❌ Disqualified', '—');
+
+    currentIndex++;
+    callNextDonor();
+    return;
+  }
+
+  currentQuestionIndex++;
+
+  if (currentQuestionIndex >= healthQuestions.length) {
+    // Ask total donations
+    document.getElementById('modalQuestion').innerHTML = `
+      <span style="font-size:14px;font-weight:500;display:block;margin-bottom:8px;">How many times has this donor donated blood?</span>
+      <input class="input-field" type="number" id="totalDonInput" min="0" value="1" style="margin:0;">
+    `;
+    document.getElementById('modalProgress').querySelectorAll('span').forEach(s => { s.className = 'done'; });
+
+    // Change modal buttons to Confirm
+    document.querySelector('.modal-btns').innerHTML = `
+      <button class="yes" style="flex:none;padding:10px 32px;" onclick="confirmDonor()">Confirm →</button>
+    `;
+    return;
+  }
+
+  renderModalQuestion();
+}
+
+function confirmDonor() {
+  const totalInput = document.getElementById('totalDonInput');
+  totalDonationsInput = parseInt(totalInput?.value) || 1;
+  document.getElementById('healthModal').classList.remove('open');
+
+  // Reset modal buttons
+  document.querySelector('.modal-btns').innerHTML = `
+    <button class="yes" onclick="healthAnswer('yes')">Yes</button>
+    <button class="no" onclick="healthAnswer('no')">No</button>
+  `;
+
+  approveDonor();
+}
+
+function approveDonor() {
+  const d = matchedDonors[currentIndex];
+  const eta = Math.floor(Math.random() * 20) + 10;
+
+  addToResponseLog(d, '✅ Approved', eta + ' mins');
+
+  showStatus(`
+    <div class="approved-card">
+      <div class="approved-header">
+        <div class="approved-icon">✅</div>
+        <div>
+          <div class="approved-title">${d.name} Approved</div>
+          <div class="approved-sub">${d.blood} · ${d.loc} · ${d.phone}</div>
+        </div>
+      </div>
+      <div class="eta-display">
+        <div class="eta-num">${eta}</div>
+        <div class="eta-label">Estimated Minutes to Arrive</div>
+      </div>
+      <div id="map"></div>
+    </div>
+  `);
+
+  setTimeout(startTracking, 100);
+}
+
+function addToResponseLog(d, status, eta) {
+  const body = document.getElementById('responseBody');
+  // Remove empty state row
+  const emptyRow = body.querySelector('td[colspan]');
+  if (emptyRow) emptyRow.closest('tr').remove();
+
+  const isApproved = status.includes('Approved');
+
+  body.innerHTML += `
+    <tr>
+      <td><strong>${d.name}</strong></td>
+      <td><span class="blood-badge" style="font-size:12px;">${d.blood}</span></td>
+      <td>${d.loc}</td>
+      <td>${healthAnswers.fever === 'yes' ? '<span class="chip chip-red">Yes</span>' : '<span class="chip chip-green">No</span>'}</td>
+      <td>${healthAnswers.hiv === 'yes' ? '<span class="chip chip-red">Yes</span>' : '<span class="chip chip-green">No</span>'}</td>
+      <td>${healthAnswers.medication === 'yes' ? '<span class="chip chip-red">Yes</span>' : '<span class="chip chip-green">No</span>'}</td>
+      <td>${healthAnswers.recentDonation === 'yes' ? '<span class="chip chip-red">Yes</span>' : '<span class="chip chip-green">No</span>'}</td>
+      <td><span class="chip chip-blue">${totalDonationsInput}</span></td>
+      <td>${isApproved ? '<span class="chip chip-green">Approved</span>' : '<span class="chip chip-red">Disqualified</span>'}</td>
+      <td>${eta}</td>
+    </tr>
+  `;
+}
+
+function showStatus(html) {
+  document.getElementById('statusBox').innerHTML = html;
+}
+
+// ─── MAP TRACKING ───
+function startTracking() {
+  if (!document.getElementById('map')) return;
+
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; mapMarker = null; }
+
+  const defaultCoords = [13.0827, 80.2707];
+  mapInstance = L.map('map').setView(defaultCoords, 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(mapInstance);
+
+  const redIcon = L.divIcon({
+    html: '<div style="width:16px;height:16px;background:#c8102e;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(200,16,46,0.6);"></div>',
+    iconAnchor: [8, 8],
+    className: ''
+  });
+
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      if (mapMarker) {
+        mapMarker.setLatLng([lat, lon]);
+      } else {
+        mapMarker = L.marker([lat, lon], { icon: redIcon }).addTo(mapInstance);
+      }
+      mapInstance.setView([lat, lon], 15);
+    }, () => {
+      // Fallback to Chennai
+      mapMarker = L.marker(defaultCoords, { icon: redIcon }).addTo(mapInstance);
+    });
+  } else {
+    mapMarker = L.marker(defaultCoords, { icon: redIcon }).addTo(mapInstance);
+  }
+}
+
+// ─── INIT ───
+showPage('home');
+</script>
+</body>
+</html>
